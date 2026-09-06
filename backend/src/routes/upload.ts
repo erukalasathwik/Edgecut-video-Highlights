@@ -61,9 +61,9 @@ router.post("/upload", upload.single("video"), (req, res) => {
 
   res.json({
     success: true,
-
+    
     // IMPORTANT: return the actual filesystem path
-    videoUrl: req.file.path,
+    videoUrl: `/uploads/${req.file.filename}`,
 
     filename: req.file.filename,
     size: req.file.size,
