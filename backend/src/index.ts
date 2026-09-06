@@ -3,10 +3,15 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import multer from "multer";
+import { fileURLToPath } from "url";
+
 
 import { highlightsRouter } from "./routes/highlights.js";
 import { uploadRouter } from "./routes/upload.js";
 import { exportRouter } from "./routes/export.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import "./db.js";
 
