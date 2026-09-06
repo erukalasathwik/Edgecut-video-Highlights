@@ -36,7 +36,7 @@ app.use("/api", exportRouter);
 
 // Serve React frontend
 const frontendPath = path.resolve(
-  process.cwd(),
+  __dirname,
   "..",
   "frontend",
   "dist"
