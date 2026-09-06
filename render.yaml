@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: edgecut-highlights
+    runtime: docker
+
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+
+    plan: free
+
+    envVars:
+      - key: ASSEMBLYAI_API_KEY
+        sync: false
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
+      - key: PORT
+        value: 8787
+
+      - key: DB_PATH
+        value: /app/data/highlights.db
+
+      - key: FFMPEG_PATH
+        value: ffmpeg
+
+      - key: YTDLP_PATH
+        value: yt-dlp
