@@ -16,8 +16,16 @@ const execFileAsync = promisify(execFile);
 function isYouTubeUrl(sourceUrl: string) {
   try {
     const url = new URL(sourceUrl);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    return host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be" || host === "youtube-nocookie.com";
+    const host = url.hostname
+      .toLowerCase()
+      .replace(/^www\./, "");
+
+    return (
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "youtu.be" ||
+      host === "youtube-nocookie.com"
+    );
   } catch {
     return false;
   }
@@ -28,99 +36,227 @@ function getYtDlpPath() {
 }
 
 async function downloadYouTubeToTemp(sourceUrl: string) {
-  const base = path.join(os.tmpdir(), `edgecut-youtube-${nanoid()}`);
+  const base = path.join(
+    os.tmpdir(),
+    `edgecut-youtube-${nanoid()}`
+  );
+
   const outputTemplate = `${base}.%(ext)s`;
 
   try {
-    await execFileAsync(getYtDlpPath(), [
-      "--no-playlist",
-      "--no-part",
-      "-f",
-      "bv*+ba/b",
-      "--merge-output-format",
-      "mp4",
-      "-o",
-      outputTemplate,
-      sourceUrl,
-    ], { maxBuffer: 20 * 1024 * 1024 });
+    await execFileAsync(
+      getYtDlpPath(),
+      [
+        "--no-playlist",
+        "--no-part",
+        "-f",
+        "bv*+ba/b",
+        "--merge-output-format",
+        "mp4",
+        "-o",
+        outputTemplate,
+        sourceUrl,
+      ],
+      {
+        maxBuffer: 20 * 1024 * 1024,
+      }
+    );
   } catch (err: any) {
-    const details = String(err?.stderr || err?.message || "").trim();
+    const details = String(
+      err?.stderr || err?.message || ""
+    ).trim();
+
     throw new Error(
-      `Could not download the YouTube video. Make sure yt-dlp is installed and the video is publicly accessible.${details ? ` ${details}` : ""}`
+      `Could not download the YouTube video. Make sure yt-dlp is installed and the video is publicly accessible.${
+        details ? ` ${details}` : ""
+      }`
     );
   }
 
   const directory = path.dirname(base);
   const prefix = path.basename(base);
+
   const files = fs.readdirSync(directory);
-  const match = files.find((name) => name.startsWith(`${prefix}.`) && !name.endsWith(".part"));
+
+  const match = files.find(
+    (name) =>
+      name.startsWith(`${prefix}.`) &&
+      !name.endsWith(".part")
+  );
 
   if (!match) {
-    throw new Error("YouTube download completed but no video file was created.");
+    throw new Error(
+      "YouTube download completed but no video file was created."
+    );
   }
 
   return path.join(directory, match);
 }
 
-export async function downloadToTemp(sourceUrl: string): Promise<string> {
+/**
+ * Converts a frontend /uploads/... URL into the actual
+ * filesystem path used by the backend.
+ */
+function resolveLocalUploadPath(sourceUrl: string) {
+  if (sourceUrl.startsWith("/uploads/")) {
+    return path.join(
+      process.cwd(),
+      sourceUrl.replace(/^\/+/, "")
+    );
+  }
+
+  return sourceUrl;
+}
+
+export async function downloadToTemp(
+  sourceUrl: string
+): Promise<string> {
   if (!sourceUrl) {
     throw new Error("Video source URL is required.");
   }
 
+  // YouTube URL
   if (isYouTubeUrl(sourceUrl)) {
     return downloadYouTubeToTemp(sourceUrl);
   }
 
-  const ext = path.extname(new URL(sourceUrl, "http://placeholder").pathname) || ".mp4";
-  const tmpFile = path.join(os.tmpdir(), `edgecut-${nanoid()}${ext}`);
+  const ext =
+    path.extname(
+      new URL(
+        sourceUrl,
+        "http://placeholder"
+      ).pathname
+    ) || ".mp4";
 
-  if (sourceUrl.startsWith("http://") || sourceUrl.startsWith("https://")) {
+  const tmpFile = path.join(
+    os.tmpdir(),
+    `edgecut-${nanoid()}${ext}`
+  );
+
+  // Remote HTTP/HTTPS video
+  if (
+    sourceUrl.startsWith("http://") ||
+    sourceUrl.startsWith("https://")
+  ) {
     const res = await fetch(sourceUrl);
+
     if (!res.ok || !res.body) {
-      throw new Error(`Failed to download video (HTTP ${res.status})`);
+      throw new Error(
+        `Failed to download video (HTTP ${res.status})`
+      );
     }
+
     const fileStream = fs.createWriteStream(tmpFile);
-    await pipeline(res.body, fileStream);
+
+    await pipeline(
+      res.body,
+      fileStream
+    );
   } else {
-    fs.copyFileSync(sourceUrl, tmpFile);
+    // Local uploaded video
+    const localPath =
+      resolveLocalUploadPath(sourceUrl);
+
+    if (!fs.existsSync(localPath)) {
+      throw new Error(
+        `Uploaded video file not found: ${localPath}`
+      );
+    }
+
+    fs.copyFileSync(
+      localPath,
+      tmpFile
+    );
   }
 
   return tmpFile;
 }
 
-/** Extracts mono 16kHz WAV audio from a video/audio file using ffmpeg. */
-export async function extractAudio(inputPath: string): Promise<string> {
-  const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
-  const outPath = inputPath.replace(path.extname(inputPath), "") + ".wav";
+/**
+ * Extracts mono 16kHz WAV audio from a video/audio file
+ * using ffmpeg.
+ */
+export async function extractAudio(
+  inputPath: string
+): Promise<string> {
+  const ffmpeg =
+    process.env.FFMPEG_PATH || "ffmpeg";
+
+  const outPath =
+    inputPath.replace(
+      path.extname(inputPath),
+      ""
+    ) + ".wav";
+
   await execAsync(
     `${ffmpeg} -y -i "${inputPath}" -ar 16000 -ac 1 -vn "${outPath}"`
   );
+
   return outPath;
 }
 
-/** Returns duration of a media file in seconds via ffprobe-style ffmpeg output. */
-export async function getDurationSeconds(filePath: string): Promise<number> {
-  const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
+/**
+ * Returns duration of a media file in seconds via
+ * ffmpeg output.
+ */
+export async function getDurationSeconds(
+  filePath: string
+): Promise<number> {
+  const ffmpeg =
+    process.env.FFMPEG_PATH || "ffmpeg";
+
   try {
-    const { stderr } = await execAsync(`${ffmpeg} -i "${filePath}"`);
-    const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
-    if (!match) return 0;
+    const { stderr } = await execAsync(
+      `${ffmpeg} -i "${filePath}"`
+    );
+
+    const match = stderr.match(
+      /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
+    );
+
+    if (!match) {
+      return 0;
+    }
+
     const [, h, m, s] = match;
-    return Number(h) * 3600 + Number(m) * 60 + Number(s);
+
+    return (
+      Number(h) * 3600 +
+      Number(m) * 60 +
+      Number(s)
+    );
   } catch (err: any) {
-    // ffmpeg with no output file exits non-zero but still prints Duration to stderr
-    const stderr: string = err.stderr || "";
-    const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+    // ffmpeg with no output file exits non-zero
+    // but still prints Duration to stderr.
+    const stderr: string =
+      err.stderr || "";
+
+    const match = stderr.match(
+      /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
+    );
+
     if (match) {
       const [, h, m, s] = match;
-      return Number(h) * 3600 + Number(m) * 60 + Number(s);
+
+      return (
+        Number(h) * 3600 +
+        Number(m) * 60 +
+        Number(s)
+      );
     }
+
     return 0;
   }
 }
 
-export function cleanupFiles(paths: string[]) {
+export function cleanupFiles(
+  paths: string[]
+) {
   for (const p of paths) {
-    fs.rm(p, { force: true }, () => {});
+    fs.rm(
+      p,
+      { force: true },
+      () => {}
+    );
   }
 }
