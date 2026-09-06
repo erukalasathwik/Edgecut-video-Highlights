@@ -10,12 +10,12 @@ const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 /**
- * Downloads a remote video/audio file (or copies a local path) to a temp
- * file so ffmpeg + AssemblyAI upload can work on raw bytes.
+ * Checks whether the source is a YouTube URL.
  */
 function isYouTubeUrl(sourceUrl: string) {
   try {
     const url = new URL(sourceUrl);
+
     const host = url.hostname
       .toLowerCase()
       .replace(/^www\./, "");
@@ -35,13 +35,19 @@ function getYtDlpPath() {
   return process.env.YTDLP_PATH || "yt-dlp";
 }
 
-async function downloadYouTubeToTemp(sourceUrl: string) {
+/**
+ * Downloads a YouTube video to a temporary file.
+ */
+async function downloadYouTubeToTemp(
+  sourceUrl: string
+) {
   const base = path.join(
     os.tmpdir(),
     `edgecut-youtube-${nanoid()}`
   );
 
-  const outputTemplate = `${base}.%(ext)s`;
+  const outputTemplate =
+    `${base}.%(ext)s`;
 
   try {
     await execFileAsync(
@@ -49,12 +55,15 @@ async function downloadYouTubeToTemp(sourceUrl: string) {
       [
         "--no-playlist",
         "--no-part",
+
+        // Prefer a single MP4 stream to reduce
+        // memory usage and avoid unnecessary merging.
         "-f",
-        "bv*+ba/b",
-        "--merge-output-format",
-        "mp4",
+        "best[ext=mp4]/best",
+
         "-o",
         outputTemplate,
+
         sourceUrl,
       ],
       {
@@ -63,7 +72,9 @@ async function downloadYouTubeToTemp(sourceUrl: string) {
     );
   } catch (err: any) {
     const details = String(
-      err?.stderr || err?.message || ""
+      err?.stderr ||
+      err?.message ||
+      ""
     ).trim();
 
     throw new Error(
@@ -73,16 +84,21 @@ async function downloadYouTubeToTemp(sourceUrl: string) {
     );
   }
 
-  const directory = path.dirname(base);
-  const prefix = path.basename(base);
+  const directory =
+    path.dirname(base);
 
-  const files = fs.readdirSync(directory);
+  const prefix =
+    path.basename(base);
 
-  const match = files.find(
-    (name) =>
-      name.startsWith(`${prefix}.`) &&
-      !name.endsWith(".part")
-  );
+  const files =
+    fs.readdirSync(directory);
+
+  const match =
+    files.find(
+      (name) =>
+        name.startsWith(`${prefix}.`) &&
+        !name.endsWith(".part")
+    );
 
   if (!match) {
     throw new Error(
@@ -90,14 +106,19 @@ async function downloadYouTubeToTemp(sourceUrl: string) {
     );
   }
 
-  return path.join(directory, match);
+  return path.join(
+    directory,
+    match
+  );
 }
 
 /**
- * Converts a frontend /uploads/... URL into the actual
- * filesystem path used by the backend.
+ * Converts a frontend /uploads/... URL
+ * into the actual backend filesystem path.
  */
-function resolveLocalUploadPath(sourceUrl: string) {
+function resolveLocalUploadPath(
+  sourceUrl: string
+) {
   if (sourceUrl.startsWith("/uploads/")) {
     return path.join(
       process.cwd(),
@@ -108,16 +129,24 @@ function resolveLocalUploadPath(sourceUrl: string) {
   return sourceUrl;
 }
 
+/**
+ * Downloads a remote video/audio file or copies
+ * a local uploaded video to a temporary file.
+ */
 export async function downloadToTemp(
   sourceUrl: string
 ): Promise<string> {
   if (!sourceUrl) {
-    throw new Error("Video source URL is required.");
+    throw new Error(
+      "Video source URL is required."
+    );
   }
 
   // YouTube URL
   if (isYouTubeUrl(sourceUrl)) {
-    return downloadYouTubeToTemp(sourceUrl);
+    return downloadYouTubeToTemp(
+      sourceUrl
+    );
   }
 
   const ext =
@@ -138,15 +167,20 @@ export async function downloadToTemp(
     sourceUrl.startsWith("http://") ||
     sourceUrl.startsWith("https://")
   ) {
-    const res = await fetch(sourceUrl);
+    const res =
+      await fetch(sourceUrl);
 
-    if (!res.ok || !res.body) {
+    if (
+      !res.ok ||
+      !res.body
+    ) {
       throw new Error(
         `Failed to download video (HTTP ${res.status})`
       );
     }
 
-    const fileStream = fs.createWriteStream(tmpFile);
+    const fileStream =
+      fs.createWriteStream(tmpFile);
 
     await pipeline(
       res.body,
@@ -155,9 +189,13 @@ export async function downloadToTemp(
   } else {
     // Local uploaded video
     const localPath =
-      resolveLocalUploadPath(sourceUrl);
+      resolveLocalUploadPath(
+        sourceUrl
+      );
 
-    if (!fs.existsSync(localPath)) {
+    if (
+      !fs.existsSync(localPath)
+    ) {
       throw new Error(
         `Uploaded video file not found: ${localPath}`
       );
@@ -173,14 +211,15 @@ export async function downloadToTemp(
 }
 
 /**
- * Extracts mono 16kHz WAV audio from a video/audio file
- * using ffmpeg.
+ * Extracts mono 16kHz WAV audio
+ * from a video/audio file using FFmpeg.
  */
 export async function extractAudio(
   inputPath: string
 ): Promise<string> {
   const ffmpeg =
-    process.env.FFMPEG_PATH || "ffmpeg";
+    process.env.FFMPEG_PATH ||
+    "ffmpeg";
 
   const outPath =
     inputPath.replace(
@@ -196,29 +235,33 @@ export async function extractAudio(
 }
 
 /**
- * Returns duration of a media file in seconds via
- * ffmpeg output.
+ * Returns duration of a media file
+ * in seconds using FFmpeg output.
  */
 export async function getDurationSeconds(
   filePath: string
 ): Promise<number> {
   const ffmpeg =
-    process.env.FFMPEG_PATH || "ffmpeg";
+    process.env.FFMPEG_PATH ||
+    "ffmpeg";
 
   try {
-    const { stderr } = await execAsync(
-      `${ffmpeg} -i "${filePath}"`
-    );
+    const { stderr } =
+      await execAsync(
+        `${ffmpeg} -i "${filePath}"`
+      );
 
-    const match = stderr.match(
-      /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
-    );
+    const match =
+      stderr.match(
+        /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
+      );
 
     if (!match) {
       return 0;
     }
 
-    const [, h, m, s] = match;
+    const [, h, m, s] =
+      match;
 
     return (
       Number(h) * 3600 +
@@ -226,17 +269,20 @@ export async function getDurationSeconds(
       Number(s)
     );
   } catch (err: any) {
-    // ffmpeg with no output file exits non-zero
-    // but still prints Duration to stderr.
+    // FFmpeg exits with an error because
+    // no output file was specified, but
+    // still prints the duration to stderr.
     const stderr: string =
       err.stderr || "";
 
-    const match = stderr.match(
-      /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
-    );
+    const match =
+      stderr.match(
+        /Duration:\s*(\d+):(\d+):(\d+\.\d+)/
+      );
 
     if (match) {
-      const [, h, m, s] = match;
+      const [, h, m, s] =
+        match;
 
       return (
         Number(h) * 3600 +
@@ -249,13 +295,18 @@ export async function getDurationSeconds(
   }
 }
 
+/**
+ * Removes temporary files.
+ */
 export function cleanupFiles(
   paths: string[]
 ) {
   for (const p of paths) {
     fs.rm(
       p,
-      { force: true },
+      {
+        force: true,
+      },
       () => {}
     );
   }
