@@ -1,50 +1,86 @@
-# EdgeCut — AI Auto Highlights
+# 🎬 EdgeCut — AI Auto Highlights
 
-EdgeCut is an AI-powered video highlight generator that analyzes long-form video content and automatically identifies the most engaging moments.
+**AI-powered video highlight generator** that analyzes long-form video and automatically finds the most engaging moments — with timestamps, transcripts, scores, and human‑readable explanations.
 
-Users can provide a video URL or upload a video, choose the number and type of highlights they want, and receive ranked, non-overlapping highlight segments with timestamps, transcripts, scores, and explanations.
-
-The project is built with a TypeScript/Node.js backend and a React/Vite frontend.
-
-## Live Demo
-
-**Website**
-https://edgecut-highlights.onrender.com
-
-**GitHub:**
-https://github.com/erukalasathwik/Edgecut-video-Highlights
+[![Frontend](https://img.shields.io/badge/demo-frontend-blue)](https://frontend-fo4wdhnyl-erukalasathwiks-projects.vercel.app/)
+[![Backend](https://img.shields.io/badge/api-backend-green)](https://edgecut-highlights.onrender.com)
+[![License](https://img.shields.io/badge/license-demo%20project-lightgrey)](#license)
 
 ---
 
-## Features
+<!-- 📸 Add a screenshot or short GIF of the app here, e.g.: -->
+<!-- ![EdgeCut demo](docs/demo.gif) -->
 
-* Video URL input
-* Local video upload
-* MP4, MOV and WebM support
-* Maximum upload size of 500 MB
-* Asynchronous highlight-generation jobs
-* Real-time processing progress
-* AI transcription with word-level timestamps
-* Automatic highlight scoring
-* Five content signals
-* Interest-based filtering
-* Top N non-overlapping highlights
-* Transcript display
-* Human-readable highlight reasons
-* Highlight preview
-* One-click Add to Timeline
-* Timeline with clip durations and total duration
-* Optional LLM-based reranking
-* SQLite job storage
-* REST API
-* React + TypeScript frontend
-* Docker deployment with FFmpeg
+## ⚡ Quick Start
+
+```bash
+git clone https://github.com/erukalasathwik/edgecut-highlights.git
+cd edgecut-highlights/backend && npm install && cp .env.example .env
+# add your ASSEMBLYAI_API_KEY to .env, then:
+npm run dev &
+cd ../frontend && npm install && npm run dev
+```
+Frontend → `http://localhost:5173` · Backend → `http://localhost:8787`
 
 ---
 
-# How It Works
+## 🔗 Live Links
 
-The application follows this pipeline:
+| | |
+|---|---|
+| **Frontend** | https://frontend-fo4wdhnyl-erukalasathwiks-projects.vercel.app/ |
+| **Backend API** | https://edgecut-highlights.onrender.com |
+| **Repository** | https://github.com/erukalasathwik/edgecut-highlights |
+
+---
+
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [How It Works](#-how-it-works)
+- [Highlight Scoring](#-highlight-scoring)
+- [Interest Filtering](#-interest-filtering)
+- [Highlight Output Format](#-highlight-output-format)
+- [REST API](#-rest-api)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Local Setup](#-local-setup)
+- [URL Sources & YouTube Support](#-url-sources--youtube-support)
+- [Validation](#-validation)
+- [Deployment](#-deployment)
+- [Design Decisions & Trade-offs](#-design-decisions--trade-offs)
+- [Requirement Checklist](#-requirement-checklist)
+- [Future Improvements](#-future-improvements)
+- [License](#-license)
+
+---
+
+## 🧠 Overview
+
+EdgeCut takes a video URL or upload, transcribes and analyzes it, and returns **ranked, non-overlapping highlight clips** — complete with timestamps, transcripts, confidence scores, and plain-English reasons for why each clip was chosen.
+
+Built with a **TypeScript/Node.js backend** and a **React + Vite frontend**.
+
+---
+
+## ✨ Features
+
+- Video URL input or local upload (MP4, MOV, WebM — up to 500 MB)
+- Asynchronous highlight-generation jobs with real-time progress
+- AI transcription with word-level timestamps (AssemblyAI)
+- Five-signal highlight scoring engine
+- Interest-based filtering (Funny, Emotional, Exciting, etc.)
+- Top‑N, non-overlapping highlight selection
+- Optional LLM re-ranking with human-readable reasons (OpenAI)
+- Transcript display, highlight preview, one-click **Add to Timeline**
+- Timeline view with clip durations and total runtime
+- SQLite job storage + REST API
+- Dockerized backend with FFmpeg for audio processing
+
+---
+
+## ⚙️ How It Works
 
 ```text
 Video URL / Upload
@@ -76,98 +112,29 @@ Display AI-generated highlights
 Preview / Add to Timeline
 ```
 
-## Processing Pipeline
+**Processing pipeline in short:**
 
-### 1. Create Highlight Job
-
-The frontend sends a request to:
-
-```http
-POST /api/highlights
-```
-
-The backend immediately creates a job in SQLite and returns a `jobId`.
-
-Example response:
-
-```json
-{
-  "jobId": "example-job-id",
-  "status": "queued"
-}
-```
-
-The video analysis then runs asynchronously in the background.
-
-### 2. Extract Audio
-
-FFmpeg extracts a mono 16 kHz WAV audio track from the source video.
-
-This audio is used for transcription and audio-energy analysis.
-
-### 3. Transcription
-
-The audio is sent to **AssemblyAI** using a publicly available API key.
-
-The transcription includes:
-
-* Word-level timestamps
-* Sentence information
-* Sentiment information
-
-### 4. Sliding Windows
-
-The transcript is divided into overlapping **25-second windows with a 10-second step**.
-
-Each window becomes a candidate highlight.
-
-### 5. Highlight Scoring
-
-Each candidate window is evaluated using five independent signals.
-
-### 6. Ranking
-
-The signals are normalized and combined into a weighted score.
-
-### 7. Non-Overlapping Selection
-
-The highest-ranked candidates are selected while preventing overlapping highlight segments.
-
-### 8. Optional LLM Reranking
-
-If an `OPENAI_API_KEY` is configured, OpenAI is used to semantically rerank the selected clips according to the user's selected interest.
-
-The LLM also generates a concise human-readable reason for why the clip is interesting.
-
-If the OpenAI key is unavailable, the application continues using the local scoring system.
-
-### 9. Results
-
-Results are stored in SQLite.
-
-The frontend polls:
-
-```http
-GET /api/highlights/:jobId
-```
-
-until processing is completed.
+1. **Create job** — `POST /api/highlights` returns a `jobId` immediately; analysis runs in the background.
+2. **Extract audio** — FFmpeg pulls a mono 16 kHz WAV track for transcription and audio-energy analysis.
+3. **Transcribe** — AssemblyAI returns word-level timestamps, sentence data, and sentiment.
+4. **Sliding windows** — transcript is split into overlapping **25‑second windows, 10‑second step**.
+5. **Score** — each window is scored with five independent signals.
+6. **Rank** — signals are normalized and combined into a weighted score.
+7. **Select** — top candidates are chosen while preventing overlap.
+8. **(Optional) LLM rerank** — if `OPENAI_API_KEY` is set, OpenAI semantically reranks clips against the selected interest and writes a short reason for each.
+9. **Results** — saved to SQLite; the frontend polls `GET /api/highlights/:jobId` until complete.
 
 ---
 
-# Highlight Scoring
+## 📊 Highlight Scoring
 
-EdgeCut uses five signals.
-
-| Signal          | Weight | Description                                                          |
-| --------------- | -----: | -------------------------------------------------------------------- |
-| Audio Energy    |    30% | Detects energetic or impactful moments using FFmpeg audio statistics |
-| Keyword Density |    25% | Identifies windows containing important recurring vocabulary         |
-| Sentiment       |    20% | Detects strongly positive or negative emotional moments              |
-| Speaking Pace   |    15% | Identifies unusually fast or energetic speech                        |
-| Position Bias   |    10% | Gives a small structural preference to openings and endings          |
-
-The final score is calculated as a weighted combination of the normalized signals.
+| Signal | Weight | Description |
+|---|---:|---|
+| Audio Energy | 30% | Detects energetic or impactful moments via FFmpeg audio stats |
+| Keyword Density | 25% | Identifies windows with important recurring vocabulary |
+| Sentiment | 20% | Detects strongly positive or negative emotional moments |
+| Speaking Pace | 15% | Identifies unusually fast or energetic speech |
+| Position Bias | 10% | Small structural preference toward openings/endings |
 
 ```text
 Final Score =
@@ -178,35 +145,21 @@ Final Score =
   + 0.10 × Position Bias
 ```
 
-The weights are intentionally simple and interpretable.
-
-A future version could learn these weights from a labeled dataset containing human-selected highlights.
+Weights are intentionally simple and interpretable — a future version could learn them from labeled, human-selected highlight data.
 
 ---
 
-# Interest Filtering
+## 🎯 Interest Filtering
 
-Users can select the type of content they want to prioritize.
+Users can prioritize the type of moment they want:
 
-Available interests include:
+`All` · `Funny` · `Emotional` · `Exciting` · `Surprise` · `Shocking` · `Informative` · `Dramatic` · `Key Insight`
 
-* All
-* Funny
-* Emotional
-* Exciting
-* Surprise
-* Shocking
-* Informative
-* Dramatic
-* Key Insight
-
-The selected interest is passed to the backend and can be used by the optional LLM reranking stage to improve semantic relevance.
+The selected interest is passed to the backend and used by the optional LLM re-ranking stage for better semantic relevance.
 
 ---
 
-# Highlight Output
-
-Each generated highlight contains:
+## 📦 Highlight Output Format
 
 ```json
 {
@@ -226,68 +179,27 @@ Each generated highlight contains:
 }
 ```
 
-The frontend displays:
-
-* Timestamp
-* Score
-* Transcript
-* Reason
-* Preview button
-* Add to Timeline button
+The frontend displays the timestamp, score, transcript, reason, a preview button, and an **Add to Timeline** button for each highlight.
 
 ---
 
-# REST API
+## 🔌 REST API
 
-## Health Check
-
+### Health Check
 ```http
 GET /health
 ```
 
-Returns the backend health status.
-
----
-
-## Upload Video
-
+### Upload Video
 ```http
 POST /api/upload
 ```
+Multipart form data. Supports MP4, MOV, WebM. Max size: **500 MB**.
 
-Accepts a video file using multipart form data.
-
-Supported formats:
-
-* MP4
-* MOV
-* WebM
-
-Maximum upload size:
-
-```text
-500 MB
-```
-
----
-
-## Generate Highlights
-
+### Generate Highlights
 ```http
 POST /api/highlights
 ```
-
-Creates an asynchronous highlight-generation job.
-
-The request can contain:
-
-* Video URL
-* Maximum number of highlights
-* Target highlight duration
-* Interest category
-
-Example:
-
 ```json
 {
   "videoUrl": "https://example.com/video.mp4",
@@ -296,72 +208,28 @@ Example:
   "interest": "Funny"
 }
 ```
-
-Example response:
-
 ```json
-{
-  "jobId": "abc123",
-  "status": "queued"
-}
+{ "jobId": "abc123", "status": "queued" }
 ```
 
----
-
-## Get Highlight Job Status
-
+### Get Job Status / Results
 ```http
 GET /api/highlights/:jobId
 ```
-
-While processing, the API returns job status and progress.
-
-After completion, it returns the generated highlights.
-
-Possible statuses include:
-
-```text
-queued
-processing
-completed
-failed
-```
+Statuses: `queued` → `processing` → `completed` / `failed`. Returns highlights once completed.
 
 ---
 
-# Technology Stack
+## 🛠 Tech Stack
 
-## Frontend
-
-* React
-* TypeScript
-* Vite
-* HTML5 Video
-* CSS
-
-## Backend
-
-* Node.js 20+
-* Express
-* TypeScript
-* SQLite
-* Multer
-* FFmpeg
-
-## AI / Processing
-
-* AssemblyAI — speech transcription and sentiment analysis
-* OpenAI — optional semantic reranking
-* FFmpeg — audio extraction and audio-energy analysis
-
-## Deployment
-
-* Vercel — frontend
-* Render — backend
+**Frontend:** React · TypeScript · Vite · HTML5 Video · CSS
+**Backend:** Node.js 20+ · Express · TypeScript · SQLite · Multer · FFmpeg
+**AI / Processing:** AssemblyAI (transcription + sentiment) · OpenAI (optional reranking) · FFmpeg (audio analysis)
+**Deployment:** Vercel (frontend) · Render (backend, Docker)
 
 ---
 
-# Project Structure
+## 📁 Project Structure
 
 ```text
 edgecut-highlights/
@@ -371,7 +239,6 @@ edgecut-highlights/
 │   │   ├── routes/
 │   │   │   ├── highlights.ts
 │   │   │   └── upload.ts
-│   │   │
 │   │   ├── services/
 │   │   │   ├── audioEnergy.ts
 │   │   │   ├── jobProcessor.ts
@@ -379,11 +246,9 @@ edgecut-highlights/
 │   │   │   ├── media.ts
 │   │   │   ├── scoring.ts
 │   │   │   └── transcribe.ts
-│   │   │
 │   │   ├── db.ts
 │   │   ├── index.ts
 │   │   └── types.ts
-│   │
 │   ├── Dockerfile
 │   ├── .env.example
 │   ├── package.json
@@ -396,12 +261,10 @@ edgecut-highlights/
 │   │   │   ├── InterestFilter.tsx
 │   │   │   ├── ProcessingChecklist.tsx
 │   │   │   └── Timeline.tsx
-│   │   │
 │   │   ├── App.tsx
 │   │   ├── api.ts
 │   │   ├── styles.css
 │   │   └── types.ts
-│   │
 │   ├── package.json
 │   └── vite.config.ts
 │
@@ -412,135 +275,96 @@ edgecut-highlights/
 
 ---
 
-# Local Setup
+## 🚀 Local Setup
 
-## Prerequisites
+### Prerequisites
+- Node.js 20+
+- FFmpeg
+- AssemblyAI API key ([free tier signup](https://www.assemblyai.com/dashboard/signup))
+- *(Optional)* OpenAI API key
+- *(Optional, for YouTube)* `yt-dlp`
 
-Install:
-
-* Node.js 20+
-* FFmpeg
-* AssemblyAI API key
-
-Optional:
-
-* OpenAI API key
-
----
-
-## 1. Clone Repository
-
+### 1. Clone the repo
 ```bash
 git clone https://github.com/erukalasathwik/edgecut-highlights.git
-
 cd edgecut-highlights
 ```
 
----
-
-## 2. Backend Setup
-
+### 2. Backend
 ```bash
 cd backend
 npm install
-```
-
-Create the environment file:
-
-```bash
 cp .env.example .env
 ```
-
-Add your AssemblyAI API key:
-
+Edit `.env`:
 ```env
 ASSEMBLYAI_API_KEY=your_assemblyai_api_key
-```
 
-Optional OpenAI configuration:
-
-```env
+# Optional
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o-mini
 ```
-
-Start the backend:
-
+Run it:
 ```bash
 npm run dev
 ```
+Backend → `http://localhost:8787`
 
-Backend:
-
-```text
-http://localhost:8787
-```
-
----
-
-## 3. Frontend Setup
-
-Open another terminal:
-
+### 3. Frontend
+In a second terminal:
 ```bash
 cd frontend
 npm install
-```
-
-Start the frontend:
-
-```bash
 npm run dev
 ```
+Frontend → `http://localhost:5173`
 
-Frontend:
+> ⚠️ **Security note:** `.env` is git-ignored — never commit real API keys. Rotate any key that was ever committed to version control.
 
-```text
-http://localhost:5173
+---
+
+## 🎥 URL Sources & YouTube Support
+
+- Paste a **public YouTube URL** → preview loads automatically via the YouTube player.
+- Paste a **direct MP4 / MOV / WebM URL** → the browser video preview loads automatically.
+- YouTube highlight generation/export uses **`yt-dlp`** on the backend.
+
+Install `yt-dlp` and ensure it's on your `PATH`, or set `YTDLP_PATH` in `backend/.env`.
+
+**Windows install:**
+```powershell
+py -m pip install -U yt-dlp
+yt-dlp --version
+```
+If installed elsewhere:
+```env
+YTDLP_PATH=C:\path\to\yt-dlp.exe
 ```
 
 ---
 
-# Validation
-
-Run backend type checking:
+## ✅ Validation
 
 ```bash
-cd backend
-npm run typecheck
-```
+# Backend type checking
+cd backend && npm run typecheck
 
-Run backend tests:
-
-```bash
+# Backend tests
 npm test
+
+# Frontend type checking
+cd frontend && npm run typecheck
 ```
-
-Run frontend type checking:
-
-```bash
-cd frontend
-npm run typecheck
-```
-
 The project should compile without TypeScript errors.
 
 ---
 
-# Deployment
+## ☁️ Deployment
 
-## Backend — Render
+### Backend — Render
+Deployed as a **Docker** service (needs Node.js + FFmpeg for long-running async processing). `render.yaml` and `backend/Dockerfile` handle build/deploy.
 
-The backend is deployed as a Docker service because it requires:
-
-* Node.js
-* FFmpeg
-* Long-running asynchronous video processing
-
-The Dockerfile installs FFmpeg and builds the TypeScript backend.
-
-Configure the following environment variables on Render:
-
+Environment variables to configure on Render:
 ```env
 ASSEMBLYAI_API_KEY=your_key
 OPENAI_API_KEY=your_optional_key
@@ -548,148 +372,71 @@ OPENAI_MODEL=gpt-4o-mini
 PORT=8787
 DB_PATH=/app/data/highlights.db
 FFMPEG_PATH=ffmpeg
+YTDLP_PATH=yt-dlp
 ```
 
-Live backend:
-
-https://edgecut-highlights.onrender.com
-
----
-
-## Frontend — Vercel
-
-The React/Vite frontend is deployed separately on Vercel.
-
-The frontend communicates with the Render backend API.
-
-Live frontend:
-
-https://frontend-fo4wdhnyl-erukalasathwiks-projects.vercel.app/
+### Frontend — Vercel
+The React/Vite frontend deploys separately and talks to the Render backend API.
 
 ---
 
-# Design Decisions and Trade-offs
+## 💡 Design Decisions & Trade-offs
 
-### Asynchronous Processing
-
-Video processing can take significant time, so the API creates a job and immediately returns a `jobId`.
-
-The frontend polls the status endpoint rather than keeping a request open for the entire analysis.
-
-### SQLite
-
-SQLite keeps the project simple and requires no external database service.
-
-For production scale, PostgreSQL or another managed database would be more appropriate.
-
-### In-Process Job Processing
-
-Jobs currently run in the backend process.
-
-For a larger production system, a queue such as BullMQ with Redis would allow:
-
-* Distributed workers
-* Better reliability
-* Retry handling
-* Persistent job queues
-
-### Local File Storage
-
-Uploaded files are temporarily stored on the server during processing.
-
-For production, object storage such as S3-compatible storage would be preferable.
-
-### Scoring Weights
-
-The scoring weights are hand-tuned and interpretable.
-
-A future version could train a ranking model using a dataset of human-selected highlights.
-
-### Video URLs
-
-The application currently expects a directly accessible video/media URL rather than automatically downloading videos from arbitrary YouTube pages.
-
-Supporting YouTube and other platforms would require an additional media acquisition layer and must respect the platform's terms and access policies.
-
-### Authentication
-
-Authentication and rate limiting are not included because this is a standalone mini-project.
-
-They would be required for a production multi-user application.
+- **Asynchronous processing** — jobs return immediately with a `jobId`; the frontend polls status instead of holding a long-lived request open.
+- **SQLite** — keeps the project simple with no external DB service; a managed database (e.g. PostgreSQL) would suit production scale better.
+- **In-process job processing** — jobs run inside the backend process; a queue like **BullMQ + Redis** would add distributed workers, retries, and durability at scale.
+- **Local file storage** — uploads are stored temporarily on the server; object storage (e.g. S3-compatible) would be preferable in production.
+- **Hand-tuned scoring weights** — simple and interpretable; a future version could train a ranking model on labeled, human-selected highlights.
+- **Direct media URLs** — the app expects an accessible video/media URL rather than scraping arbitrary pages; broader platform support would need a dedicated media-acquisition layer respecting each platform's terms.
+- **No auth / rate limiting** — out of scope for this standalone demo project; required for a production multi-user system.
 
 ---
 
-# Assignment Requirement Checklist
+## 📋 Requirement Checklist
 
-| Requirement                  | Implementation         |
-| ---------------------------- | ---------------------- |
-| REST API                     | Express + TypeScript   |
-| POST `/api/highlights`       | Implemented            |
-| GET `/api/highlights/:jobId` | Implemented            |
-| Async job processing         | Implemented            |
-| Speech transcription         | AssemblyAI             |
-| Sliding windows              | 25s windows / 10s step |
-| At least 2 scoring signals   | 5 signals implemented  |
-| Audio energy                 | Implemented            |
-| Keyword density              | Implemented            |
-| Sentiment                    | Implemented            |
-| Speaking pace                | Implemented            |
-| Position bias                | Implemented            |
-| Top N highlights             | Implemented            |
-| Non-overlapping clips        | Implemented            |
-| Human-readable reason        | Implemented            |
-| Optional LLM reranking       | Implemented            |
-| React frontend               | Implemented            |
-| Progress polling             | Implemented            |
-| Highlights panel             | Implemented            |
-| Preview                      | Implemented            |
-| Add to Timeline              | Implemented            |
-| Timeline total duration      | Implemented            |
-| SQLite storage               | Implemented            |
-| TypeScript                   | Frontend + Backend     |
-| Unit tests                   | Scoring tests included |
-| Docker + FFmpeg              | Implemented            |
-| Vercel deployment            | Implemented            |
-| Render deployment            | Implemented            |
+| Requirement | Status |
+|---|---|
+| REST API (Express + TypeScript) | ✅ |
+| `POST /api/highlights` | ✅ |
+| `GET /api/highlights/:jobId` | ✅ |
+| Async job processing | ✅ |
+| Speech transcription (AssemblyAI) | ✅ |
+| Sliding windows (25s / 10s step) | ✅ |
+| ≥2 scoring signals (5 implemented) | ✅ |
+| Audio energy | ✅ |
+| Keyword density | ✅ |
+| Sentiment | ✅ |
+| Speaking pace | ✅ |
+| Position bias | ✅ |
+| Top‑N, non-overlapping highlights | ✅ |
+| Human-readable reasons | ✅ |
+| Optional LLM re-ranking | ✅ |
+| React frontend + progress polling | ✅ |
+| Highlights panel, preview, Add to Timeline | ✅ |
+| Timeline total duration | ✅ |
+| SQLite storage | ✅ |
+| TypeScript (frontend + backend) | ✅ |
+| Unit tests (scoring) | ✅ |
+| Docker + FFmpeg | ✅ |
+| Vercel + Render deployment | ✅ |
 
 ---
 
-# Future Improvements
+## 🔮 Future Improvements
 
-* Support additional video platforms
-* Improve highlight duration targeting
-* Train scoring weights using labeled data
-* Add persistent object storage
-* Add Redis/BullMQ job queues
-* Add authentication
-* Add rate limiting
-* Add video clip export/download
-* Add subtitle generation
-* Improve multilingual transcription
-* Add more advanced semantic ranking
+- Support additional video platforms
+- Improve highlight duration targeting
+- Train scoring weights on labeled data
+- Persistent object storage
+- Redis/BullMQ job queues
+- Authentication & rate limiting
+- Video clip export/download
+- Subtitle generation
+- Improved multilingual transcription
+- More advanced semantic ranking
 
 ---
 
-# License
+## 📄 License
 
-This project was created as a standalone AI video-processing mini-project for demonstration and evaluation purposes.
-
-
-## URL sources
-
-- Paste a public YouTube URL and the preview loads automatically using the YouTube player.
-- Paste a direct MP4, MOV, or WebM URL and the browser video preview loads automatically.
-- YouTube highlight generation/export uses `yt-dlp` on the backend. Install it and make sure `yt-dlp` is available on PATH, or set `YTDLP_PATH` in `backend/.env`.
-
-Windows install:
-
-```powershell
-py -m pip install -U yt-dlp
-yt-dlp --version
-```
-
-If `yt-dlp` is installed elsewhere, set for example:
-
-```env
-YTDLP_PATH=C:\path\to\yt-dlp.exe
-```
+This project was built as a standalone AI video-processing demo/evaluation project.
