@@ -8,14 +8,11 @@ The project is built with a TypeScript/Node.js backend and a React/Vite frontend
 
 ## Live Demo
 
-**Frontend:**
-https://frontend-fo4wdhnyl-erukalasathwiks-projects.vercel.app/
-
-**Backend API:**
+**Website**
 https://edgecut-highlights.onrender.com
 
 **GitHub:**
-https://github.com/erukalasathwik/edgecut-highlights
+https://github.com/erukalasathwik/Edgecut-video-Highlights
 
 ---
 
